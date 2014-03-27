@@ -83,6 +83,9 @@ public class PSDEditorWindow : EditorWindow {
                 if (GUILayout.Button("Create atlas")) {
                     CreateAtlas();
                 }
+                if (GUILayout.Button("Create sprites")) {
+                    CreateSprites();
+                }
             } else {
                 EditorGUILayout.HelpBox("This texture is not a PSD file.", MessageType.Error);
             }
@@ -105,7 +108,10 @@ public class PSDEditorWindow : EditorWindow {
             byte r = red.ImageData[i];
             byte g = green.ImageData[i];
             byte b = blue.ImageData[i];
-            byte a = alpha.ImageData[i];
+            byte a = 255;
+            
+            if (alpha != null)
+                a = alpha.ImageData[i];
 
             int mod = i % tex.width;
             int n = ((tex.width - mod - 1) + i) - mod;
@@ -122,14 +128,10 @@ public class PSDEditorWindow : EditorWindow {
             if (layer.Visible) {
                 Texture2D tex = CreateTexture(layer);
                 if (tex == null) continue;
-                byte[] buf = tex.EncodeToPNG();
-
-                string assetPath = AssetDatabase.GetAssetPath(image);
-                string path = Path.Combine(Path.GetDirectoryName(assetPath), Path.GetFileNameWithoutExtension(assetPath) + "_" + layer.Name + ".png");
-                File.WriteAllBytes(path, buf);
+                SaveAsset(tex, "_" + layer.Name);
+                DestroyImmediate(tex);
             }
         }
-        AssetDatabase.Refresh();
     }
 
     private void CreateAtlas() {
@@ -137,14 +139,42 @@ public class PSDEditorWindow : EditorWindow {
 
         Texture2D atlas = new Texture2D(atlassize, atlassize);
         atlas.PackTextures(textures, 2, atlassize);
+        SaveAsset(atlas, "_atlas");
 
+        foreach (Texture2D tex in textures) {
+            DestroyImmediate(tex);
+        }
+    }
+
+    private void CreateSprites() {
+        int zOrder = 0;
+        foreach (var layer in psd.Layers) {
+            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
+                Texture2D tex = CreateTexture(layer);
+                Sprite spr = SaveAsset(tex, "_" + layer.Name);
+                DestroyImmediate(tex);
+
+                GameObject go = new GameObject(layer.Name);
+                SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = spr;
+                sr.sortingOrder = zOrder++;
+                go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / 100, (-layer.Rect.height / 2 - layer.Rect.y) / 100, 0);
+            }
+        }
+    }
+
+    private Sprite SaveAsset(Texture2D tex, string suffix) {
         string assetPath = AssetDatabase.GetAssetPath(image);
-        string path = Path.Combine(Path.GetDirectoryName(assetPath), Path.GetFileNameWithoutExtension(assetPath) + "_atlas.png");
+        string path = Path.Combine(Path.GetDirectoryName(assetPath),
+            Path.GetFileNameWithoutExtension(assetPath) + suffix + ".png");
 
-        byte[] buf = atlas.EncodeToPNG();
+        byte[] buf = tex.EncodeToPNG();
         File.WriteAllBytes(path, buf);
 
         AssetDatabase.Refresh();
+
+        return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
     }
+
 }
 
