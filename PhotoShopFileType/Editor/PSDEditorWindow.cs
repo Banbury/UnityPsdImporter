@@ -135,13 +135,78 @@ public class PSDEditorWindow : EditorWindow {
     }
 
     private void CreateAtlas() {
-        Texture2D[] textures = (from layer in psd.Layers where layer.Visible select CreateTexture(layer) into tex where tex != null select tex).ToArray();
+        // Texture2D[] textures = (from layer in psd.Layers where layer.Visible select CreateTexture(layer) into tex where tex != null select tex).ToArray();
 
-        Texture2D atlas = new Texture2D(atlassize, atlassize);
-        atlas.PackTextures(textures, 2, atlassize);
-        SaveAsset(atlas, "_atlas");
+        List<Texture2D> textures = new List<Texture2D>();
 
-        foreach (Texture2D tex in textures) {
+		// Track the spriteRenderers created via a List
+        List<SpriteRenderer> spriteRenderers = new List<SpriteRenderer>();
+
+		int zOrder = 0;
+		foreach (var layer in psd.Layers) {
+			if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
+				Texture2D tex = CreateTexture(layer);
+				// Add the texture to the Texture Array
+				textures.Add(tex);
+
+				GameObject go = new GameObject(layer.Name);
+				SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+				go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / 100, (-layer.Rect.height / 2 - layer.Rect.y) / 100, 0);
+				// Add the sprite renderer to the SpriteRenderer Array
+				spriteRenderers.Add(sr);
+				sr.sortingOrder = zOrder++;
+			}
+		}
+
+		// The output of PackTextures returns a Rect array from which we can create our sprites
+		Rect[] rects;
+		Texture2D atlas = new Texture2D(atlassize, atlassize);
+		Texture2D[] textureArray = textures.ToArray();
+		rects = atlas.PackTextures(textureArray, 2, atlassize);
+		List<SpriteMetaData> Sprites = new List<SpriteMetaData>();
+
+		// For each rect in the Rect Array create the sprite and assign to the SpriteMetaData
+		for(int i = 0; i < rects.Length; i++)
+		{
+			// add the name and rectangle to the dictionary
+			SpriteMetaData smd = new SpriteMetaData();
+			smd.name = spriteRenderers[i].name;
+			smd.rect = new Rect(rects[i].xMin * atlassize, rects[i].yMin * atlassize, rects[i].width * atlassize, rects[i].height * atlassize);
+			smd.pivot = new Vector2(0.5f, 0.5f); // Center is default otherwise layers will be misaligned
+			smd.alignment = 1;
+			Sprites.Add(smd);
+		}
+
+		// Need to load the image first
+		string assetPath = AssetDatabase.GetAssetPath(image);
+		string path = Path.Combine(Path.GetDirectoryName(assetPath),
+			Path.GetFileNameWithoutExtension(assetPath) + "_atlas" + ".png");
+
+		byte[] buf = atlas.EncodeToPNG();
+        File.WriteAllBytes(path, buf);
+		AssetDatabase.Refresh();
+
+		// Get our texture that we loaded
+		atlas = (Texture2D)AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
+		TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
+		// Make sure the size is the same as our atlas then create the spritesheet
+		textureImporter.maxTextureSize = atlassize;
+		textureImporter.spritesheet = Sprites.ToArray();
+		textureImporter.textureType = TextureImporterType.Sprite; 
+		textureImporter.spriteImportMode = SpriteImportMode.Multiple;
+		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+
+		// For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
+		for(int j = 0; j < textureImporter.spritesheet.Length; j++)
+		{
+			// Debug.Log(textureImporter.spritesheet[j].rect);
+			Sprite spr = Sprite.Create(atlas, textureImporter.spritesheet[j].rect, textureImporter.spritesheet[j].pivot, 100.0f);  // The 100.0f is for the pixels to unit, maybe make that a public variable for the user to change before hand?
+
+			// Add the sprite to the sprite renderer
+			spriteRenderers[j].sprite = spr;
+		}
+
+        foreach (Texture2D tex in textureArray) {
             DestroyImmediate(tex);
         }
     }
@@ -168,10 +233,15 @@ public class PSDEditorWindow : EditorWindow {
         string path = Path.Combine(Path.GetDirectoryName(assetPath),
             Path.GetFileNameWithoutExtension(assetPath) + suffix + ".png");
 
-        byte[] buf = tex.EncodeToPNG();
+		byte[] buf = tex.EncodeToPNG();
         File.WriteAllBytes(path, buf);
-
-        AssetDatabase.Refresh();
+		AssetDatabase.Refresh();
+		// Load the texture so we can change the type
+		AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
+		TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
+		textureImporter.textureType = TextureImporterType.Sprite; 
+		textureImporter.spriteImportMode = SpriteImportMode.Single;
+		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
         return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
     }

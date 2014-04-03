@@ -168,7 +168,7 @@ namespace PhotoshopFile
   {
     public static ImageResource CreateImageResource(PsdBinaryReader reader)
     {
-      Debug.Print("ImageResource started at {0}", reader.BaseStream.Position);
+      // Debug.Print("ImageResource started at {0}", reader.BaseStream.Position);
 
       var signature = reader.ReadAsciiChars(4);
       var resourceIdInt = reader.ReadUInt16();
