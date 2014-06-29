@@ -36,6 +36,7 @@ public class PSDEditorWindow : EditorWindow {
     private Vector2 scrollPos;
     private PsdFile psd;
     private int atlassize = 4096;
+    private float pixelsToUnitSize = 100.0f;
 	private string fileName;
 
     [MenuItem("Window/Sprites/PSD Import")]
@@ -80,6 +81,12 @@ public class PSDEditorWindow : EditorWindow {
 
                 if (!((atlassize != 0) && ((atlassize & (atlassize - 1)) == 0))) {
                     EditorGUILayout.HelpBox("Atlas size should be a power of 2", MessageType.Warning);
+                }
+
+                pixelsToUnitSize = EditorGUILayout.FloatField("Pixels To Unit Size", pixelsToUnitSize);
+
+                if (pixelsToUnitSize <= 0) {
+                    EditorGUILayout.HelpBox("Pixels To Unit Size should be greater than 0.", MessageType.Warning);
                 }
 
                 if (GUILayout.Button("Create atlas")) {
@@ -154,7 +161,7 @@ public class PSDEditorWindow : EditorWindow {
 
 				GameObject go = new GameObject(layer.Name);
 				SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
-				go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / 100, (-layer.Rect.height / 2 - layer.Rect.y) / 100, 0);
+				go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / pixelsToUnitSize, (-layer.Rect.height / 2 - layer.Rect.y) / pixelsToUnitSize, 0);
 				// Add the sprite renderer to the SpriteRenderer Array
 				spriteRenderers.Add(sr);
 				sr.sortingOrder = zOrder++;
@@ -199,13 +206,14 @@ public class PSDEditorWindow : EditorWindow {
 		textureImporter.textureType = TextureImporterType.Sprite; 
 		textureImporter.spriteImportMode = SpriteImportMode.Multiple;
 		textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
+		textureImporter.spritePixelsToUnits = pixelsToUnitSize;
 		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
 		// For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
 		for(int j = 0; j < textureImporter.spritesheet.Length; j++)
 		{
 			// Debug.Log(textureImporter.spritesheet[j].rect);
-			Sprite spr = Sprite.Create(atlas, textureImporter.spritesheet[j].rect, textureImporter.spritesheet[j].pivot, 100.0f);  // The 100.0f is for the pixels to unit, maybe make that a public variable for the user to change before hand?
+			Sprite spr = Sprite.Create(atlas, textureImporter.spritesheet[j].rect, textureImporter.spritesheet[j].pivot, pixelsToUnitSize);  // The 100.0f is for the pixels to unit, maybe make that a public variable for the user to change before hand?
 
 			// Add the sprite to the sprite renderer
 			spriteRenderers[j].sprite = spr;
@@ -229,7 +237,7 @@ public class PSDEditorWindow : EditorWindow {
                 SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = spr;
                 sr.sortingOrder = zOrder++;
-                go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / 100, (-layer.Rect.height / 2 - layer.Rect.y) / 100, 0);
+                go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / pixelsToUnitSize, (-layer.Rect.height / 2 - layer.Rect.y) / pixelsToUnitSize, 0);
 				go.transform.parent = root.transform;
             }
         }
@@ -249,6 +257,7 @@ public class PSDEditorWindow : EditorWindow {
 		textureImporter.textureType = TextureImporterType.Sprite; 
 		textureImporter.spriteImportMode = SpriteImportMode.Single;
 		textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
+		textureImporter.spritePixelsToUnits = pixelsToUnitSize;
 		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
         return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
