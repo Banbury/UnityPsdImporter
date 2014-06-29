@@ -182,7 +182,7 @@ public class PSDEditorWindow : EditorWindow {
 			// add the name and rectangle to the dictionary
 			SpriteMetaData smd = new SpriteMetaData();
 			smd.name = spriteRenderers[i].name;
-			smd.rect = new Rect(rects[i].xMin * atlassize, rects[i].yMin * atlassize, rects[i].width * atlassize, rects[i].height * atlassize);
+			smd.rect = new Rect(rects[i].xMin * atlas.width, rects[i].yMin * atlas.height, rects[i].width * atlas.width, rects[i].height * atlas.height);
 			smd.pivot = new Vector2(0.5f, 0.5f); // Center is default otherwise layers will be misaligned
 			smd.alignment = (int)SpriteAlignment.Center;
 			Sprites.Add(smd);
