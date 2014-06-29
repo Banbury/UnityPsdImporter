@@ -36,6 +36,7 @@ public class PSDEditorWindow : EditorWindow {
     private Vector2 scrollPos;
     private PsdFile psd;
     private int atlassize = 4096;
+	private string fileName;
 
     [MenuItem("Window/Sprites/PSD Import")]
     public static void ShowWindow() {
@@ -55,6 +56,7 @@ public class PSDEditorWindow : EditorWindow {
 
                 if (path.ToUpper().EndsWith(".PSD")) {
                     psd = new PsdFile(path, Encoding.Default);
+					fileName = Path.GetFileNameWithoutExtension(path);
                 } else {
                     psd = null;
                 }
@@ -143,6 +145,7 @@ public class PSDEditorWindow : EditorWindow {
         List<SpriteRenderer> spriteRenderers = new List<SpriteRenderer>();
 
 		int zOrder = 0;
+		GameObject root = new GameObject(fileName);
 		foreach (var layer in psd.Layers) {
 			if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
 				Texture2D tex = CreateTexture(layer);
@@ -155,6 +158,7 @@ public class PSDEditorWindow : EditorWindow {
 				// Add the sprite renderer to the SpriteRenderer Array
 				spriteRenderers.Add(sr);
 				sr.sortingOrder = zOrder++;
+				go.transform.parent = root.transform;
 			}
 		}
 
@@ -173,7 +177,7 @@ public class PSDEditorWindow : EditorWindow {
 			smd.name = spriteRenderers[i].name;
 			smd.rect = new Rect(rects[i].xMin * atlassize, rects[i].yMin * atlassize, rects[i].width * atlassize, rects[i].height * atlassize);
 			smd.pivot = new Vector2(0.5f, 0.5f); // Center is default otherwise layers will be misaligned
-			smd.alignment = 1;
+			smd.alignment = (int)SpriteAlignment.Center;
 			Sprites.Add(smd);
 		}
 
@@ -194,6 +198,7 @@ public class PSDEditorWindow : EditorWindow {
 		textureImporter.spritesheet = Sprites.ToArray();
 		textureImporter.textureType = TextureImporterType.Sprite; 
 		textureImporter.spriteImportMode = SpriteImportMode.Multiple;
+		textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
 		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
 		// For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
@@ -213,7 +218,8 @@ public class PSDEditorWindow : EditorWindow {
 
     private void CreateSprites() {
         int zOrder = 0;
-        foreach (var layer in psd.Layers) {
+        GameObject root = new GameObject(fileName);
+		foreach (var layer in psd.Layers) {
             if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
                 Texture2D tex = CreateTexture(layer);
                 Sprite spr = SaveAsset(tex, "_" + layer.Name);
@@ -224,6 +230,7 @@ public class PSDEditorWindow : EditorWindow {
                 sr.sprite = spr;
                 sr.sortingOrder = zOrder++;
                 go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / 100, (-layer.Rect.height / 2 - layer.Rect.y) / 100, 0);
+				go.transform.parent = root.transform;
             }
         }
     }
@@ -241,6 +248,7 @@ public class PSDEditorWindow : EditorWindow {
 		TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
 		textureImporter.textureType = TextureImporterType.Sprite; 
 		textureImporter.spriteImportMode = SpriteImportMode.Single;
+		textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
 		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
         return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
