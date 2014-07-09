@@ -15,3 +15,11 @@ To create a root gameobject with all the layers as child sprites and the layers 
 To create PNG files individually with each sprite assigned to the PNG files, click on the "Create sprites" button.  This will create a root gameobject with the filename of the PSD file and all the layers as sprites under the root gameobject.
 
 All sprites are created with a center pivot so that they will import in their correct alignment with the PSD file layers' positions.
+
+Some notes on the PSD support:
+
+It should support all image layers, however text, layer groups, or other special layers will not be supported. It is best to flatten layer groups and text before importing.
+
+All the imported layers should be imported at their same positions as in the PSD file.
+    
+When importing as an atlas, if the layers cannot collectively fit in the atlas they will be scaled down to fit the atlas texture, therefore it is preferable to import the layers using "Create sprites" to have the layers imported as separate PNG files.
