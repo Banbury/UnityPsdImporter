@@ -39,7 +39,7 @@ public class PSDEditorWindow : EditorWindow {
     private float pixelsToUnitSize = 100.0f;
 	private string fileName;
 
-    [MenuItem("Window/Sprites/PSD Import")]
+    [MenuItem("Sprites/PSD Import")]
     public static void ShowWindow() {
         var wnd = GetWindow<PSDEditorWindow>();
         wnd.title = "PSD Import";
