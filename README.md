@@ -6,7 +6,7 @@ and exported. The layers are exported either as individual PNGs or as an atlas i
 
 To compile the Unity PSD Importer in the Unity3D Editor you must have the files gmcs.rsp and smcs.rsp with "-unsafe" in the first line of the files in the root directory of your project.  Otherwise you can compile the code as a DLL and it will also work in the editor.
 
-To use the Unity PSD Importer, in the Unity3D Editor go to Window > Sprites > PSD Import to access the importer, then drag and drop or search for the PSD file you wish to import.  
+To use the Unity PSD Importer, in the Unity3D Editor go to Sprites > PSD Import to access the importer, then drag and drop or search for the PSD file you wish to import.  
 
 To only export the layers to PNG files, click on the "Export Visible Layers" button and it will only create the PNG files with the sprites that are visible.  You can individually check which layers you want to import.
 
