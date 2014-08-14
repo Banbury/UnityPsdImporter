@@ -27,561 +27,358 @@ using System.Reflection;
 using PhotoshopFile;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using PivotPos = kontrabida.psdexport.PSDExporter.PivotPos;
 
-public class PSDEditorWindow : EditorWindow
+namespace kontrabida.psdexport
 {
-	public enum PivotPos
+	public class PSDEditorWindow : EditorWindow
 	{
-		Center,
-		TopLeft,
-		Top,
-		TopRight,
-		Left,
-		Right,
-		BottomLeft,
-		Bottom,
-		BottomRight,
-		Custom
-	}
-
-	private Texture2D image;
-	private Vector2 scrollPos;
-	private PsdFile psd;
-	private int atlassize = 4096;
-	private float pixelsToUnitSize = 100.0f;
-	private string fileName;
-	private int scaleBy = 0;
-
-	//private bool showAtlas = false;
-	private bool showSprite = false;
-	private PivotPos pivot;
-	private Vector2 pivotCustom;
-
-	private bool imageChanged = false;
-
-	private bool createAtSelection = false;
-	private PivotPos createPivot = PivotPos.TopLeft;
-	private int createSortLayer = 0;
-
-	private GUIStyle headerStyle;
-
-	public Texture2D Image
-	{
-		get { return image; }
-		set
+		#region Static/Menus
+		private static PSDEditorWindow GetPSDEditor()
 		{
-			image = value;
-			AssetDatabase.GetLabels(image);
-			imageChanged = true;
-		}
-	}
-
-	private static PSDEditorWindow GetPSDEditor()
-	{
-		var wnd = GetWindow<PSDEditorWindow>();
-		wnd.title = "PSD Import";
-		wnd.Show();
-		return wnd;
-	}
-
-	[MenuItem("Sprites/PSD Import")]
-	public static void ShowWindow()
-	{
-		GetPSDEditor();
-	}
-
-	[MenuItem("Assets/Sprites/PSD Import")]
-	static void ImportPsdWindow()
-	{
-		var wnd = GetPSDEditor();
-		wnd.Image = (Texture2D)Selection.objects[0];
-		EditorUtility.SetDirty(wnd);
-	}
-
-	[MenuItem("Assets/Sprites/PSD Import", true)]
-	static bool ImportPsd()
-	{
-		Object[] arr = Selection.objects;
-
-		if (arr.Length != 1)
-			return false;
-
-		string assetPath = AssetDatabase.GetAssetPath(arr[0]);
-		return assetPath.ToUpper().EndsWith(".PSD");
-	}
-
-	private static string[] _sortingLayerNames;
-
-	void SetupSortingLayerNames()
-	{
-		if (_sortingLayerNames == null)
-		{
-			var internalEditorUtilityType = Type.GetType("UnityEditorInternal.InternalEditorUtility, UnityEditor");
-			var sortingLayersProperty = internalEditorUtilityType.GetProperty("sortingLayerNames", BindingFlags.Static | BindingFlags.NonPublic);
-			_sortingLayerNames = sortingLayersProperty.GetValue(null, new object[0]) as string[];
-		}
-	}
-
-	void OnEnable()
-	{
-		SetupSortingLayerNames();
-	}
-
-	private bool LoadImage()
-	{
-		string path = AssetDatabase.GetAssetPath(image);
-		bool valid = path.ToUpper().EndsWith(".PSD");
-		if (valid)
-		{
-			psd = new PsdFile(path, Encoding.Default);
-			fileName = Path.GetFileNameWithoutExtension(path);
-			LoadMetaData();
-		}
-		else
-		{
-			psd = null;
+			var wnd = GetWindow<PSDEditorWindow>();
+			wnd.title = "PSD Import";
+			wnd.Show();
+			return wnd;
 		}
 
-		if (imageChanged)
-			imageChanged = false;
-
-		return valid;
-	}
-
-	private void LoadMetaData()
-	{
-		string[] nameStrings = Enum.GetNames(typeof(PivotPos));
-		Array nameVals = Enum.GetValues(typeof(PivotPos));
-
-		string[] labels = AssetDatabase.GetLabels(image);
-		foreach (var label in labels)
+		[MenuItem("Sprites/PSD Import")]
+		public static void ShowWindow()
 		{
-			switch (label)
+			GetPSDEditor();
+		}
+
+		[MenuItem("Assets/Sprites/PSD Import")]
+		static void ImportPsdWindow()
+		{
+			var wnd = GetPSDEditor();
+			wnd.Image = (Texture2D)Selection.objects[0];
+			EditorUtility.SetDirty(wnd);
+		}
+
+		[MenuItem("Assets/Sprites/PSD Import", true)]
+		static bool ImportPsd()
+		{
+			Object[] arr = Selection.objects;
+
+			if (arr.Length != 1)
+				return false;
+
+			string assetPath = AssetDatabase.GetAssetPath(arr[0]);
+			return assetPath.ToUpper().EndsWith(".PSD");
+		}
+		#endregion
+
+		private PsdExportSettings settings;
+		private PsdFileInfo fileInfo;
+
+		private Vector2 scrollPos = Vector2.zero;
+
+		private PSDExporter.PivotPos createPivot;
+		private bool createAtSelection = false;
+		private int createSortLayer = 0;
+
+		private GUIStyle styleHeader, styleLabelLeft;
+
+		private Texture2D image;
+		public Texture2D Image
+		{
+			get { return image; }
+			set
 			{
-				case "ImportX1":
-					scaleBy = 0;
-					break;
-				case "ImportX2":
-					scaleBy = 1;
-					break;
-				case "ImportX4":
-					scaleBy = 2;
-					break;
-			}
-
-			if (label.StartsWith("ImportAnchor"))
-			{
-				string pivotType = label.Substring(12);
-				for (int i = 0; i < nameStrings.Length; i++)
-				{
-					if (pivotType == nameStrings[i])
-					{
-						pivot = (PivotPos)nameVals.GetValue(i);
-					}
-				}
-			}
-		}
-	}
-
-	private void SaveMetaData()
-	{
-		string[] labels = new string[2];
-		if (scaleBy == 0)
-			labels[0] = "ImportX1";
-		if (scaleBy == 1)
-			labels[0] = "ImportX2";
-		if (scaleBy == 2)
-			labels[0] = "ImportX4";
-		labels[1] = "ImportAnchor" + pivot.ToString();
-		AssetDatabase.SetLabels(image, labels);
-	}
-
-	public void OnGUI()
-	{
-		if (headerStyle == null)
-		{
-			headerStyle = new GUIStyle(GUI.skin.GetStyle("label"))
-			{
-				alignment = TextAnchor.MiddleCenter,
-				fontStyle = FontStyle.Bold
-			};
-		}
-
-		EditorGUI.BeginChangeCheck();
-		image = (Texture2D)EditorGUILayout.ObjectField("PSD File", image, typeof(Texture2D), true);
-		bool changed = EditorGUI.EndChangeCheck() || imageChanged;
-
-		if (image != null)
-		{
-			if (changed)
-			{
+				image = value;
 				LoadImage();
 			}
+		}
 
-			if (psd != null)
+
+		private static string[] _sortingLayerNames;
+
+		void OnEnable()
+		{
+			SetupSortingLayerNames();
+			if (image != null)
+				LoadImage();
+		}
+
+		void SetupSortingLayerNames()
+		{
+			if (_sortingLayerNames == null)
+			{
+				var internalEditorUtilityType = Type.GetType("UnityEditorInternal.InternalEditorUtility, UnityEditor");
+				var sortingLayersProperty = internalEditorUtilityType.GetProperty("sortingLayerNames", BindingFlags.Static | BindingFlags.NonPublic);
+				_sortingLayerNames = sortingLayersProperty.GetValue(null, new object[0]) as string[];
+			}
+		}
+
+		private bool LoadImage()
+		{
+			settings = new PsdExportSettings(image);
+			bool valid = (settings.Psd != null);
+			if (valid)
+			{
+				// Parse the layer info
+				fileInfo = new PsdFileInfo(settings.Psd);
+			}
+			return valid;
+		}
+
+		void SetupStyles()
+		{
+			if (styleHeader == null)
+			{
+				styleHeader = new GUIStyle(GUI.skin.label)
+				{
+					alignment = TextAnchor.MiddleCenter,
+					fontStyle = FontStyle.Bold
+				};
+			}
+			if (styleLabelLeft == null)
+			{
+				styleLabelLeft = new GUIStyle(GUI.skin.label)
+				{
+					alignment = TextAnchor.MiddleLeft,
+					padding = new RectOffset(0, 0, 0, 0)
+				};
+			}
+		}
+
+		public void OnGUI()
+		{
+			SetupStyles();
+
+			EditorGUI.BeginChangeCheck();
+			var img = (Texture2D)EditorGUILayout.ObjectField("PSD File", image, typeof(Texture2D), true);
+			bool changed = EditorGUI.EndChangeCheck();
+			if (changed)
+				Image = img;
+
+			if (settings.Psd != null)
 			{
 				DrawPsdLayers();
+
 				DrawExportEntry();
 
 				DrawSpriteEntry();
-				//DrawAtlasEntry();
 			}
 			else
 			{
 				EditorGUILayout.HelpBox("This texture is not a PSD file.", MessageType.Error);
 			}
 		}
-	}
 
-	private void DrawExportEntry()
-	{
-		GUILayout.Label("Export Settings", headerStyle);
-		
-		scaleBy = GUILayout.Toolbar(scaleBy, new string[] { "1X", "2X", "4X" });
-
-		pixelsToUnitSize = EditorGUILayout.FloatField("Pixels To Unit Size", pixelsToUnitSize);
-		if (pixelsToUnitSize <= 0)
+		private void DrawExportEntry()
 		{
-			EditorGUILayout.HelpBox("Pixels To Unit Size should be greater than 0.", MessageType.Warning);
-		}
+			GUILayout.Label("Export Settings", styleHeader);
 
-		pivot = (PivotPos)EditorGUILayout.EnumPopup("Pivot", pivot);
-		if (pivot == PivotPos.Custom)
-		{
-			pivotCustom = EditorGUILayout.Vector2Field("Custom Pivot", pivotCustom);
-		}
-		else
-		{
-			pivotCustom = new Vector2(0.5f, 0.5f);
-			if (pivot == PivotPos.Top || pivot == PivotPos.TopLeft || pivot == PivotPos.TopRight)
-				pivotCustom.y = 1;
-			if (pivot == PivotPos.Bottom || pivot == PivotPos.BottomLeft || pivot == PivotPos.BottomRight)
-				pivotCustom.y = 0f;
-
-			if (pivot == PivotPos.Left || pivot == PivotPos.TopLeft || pivot == PivotPos.BottomLeft)
-				pivotCustom.x = 0f;
-			if (pivot == PivotPos.Right || pivot == PivotPos.TopRight || pivot == PivotPos.BottomRight)
-				pivotCustom.x = 1f;
-		}
-
-		if (GUILayout.Button("Export Visible Layers"))
-		{
-			ExportLayers();
-		}
-	}
-
-	private void DrawSpriteEntry()
-	{
-		GUILayout.Label("Sprite Creation", headerStyle);
-
-		createPivot = (PivotPos)EditorGUILayout.EnumPopup("Create Pivot", createPivot);
-
-		if (_sortingLayerNames != null)
-			createSortLayer = EditorGUILayout.Popup("Sorting Layer", createSortLayer, _sortingLayerNames);
-
-		if (GUILayout.Button("Create at Selection"))
-		{
-			createAtSelection = true;
-			CreateSprites();
-		}
-
-		if (GUILayout.Button("Create Sprites"))
-		{
-			createAtSelection = false;
-			CreateSprites();
-		}
-	}
-
-	//private void DrawAtlasEntry()
-	//{
-	//	showAtlas = EditorGUILayout.Foldout(showAtlas, "Atlas");
-	//	if (!showAtlas)
-	//		return;
-
-	//	atlassize = EditorGUILayout.IntField("Max. atlas size", atlassize);
-	//	if (!((atlassize != 0) && ((atlassize & (atlassize - 1)) == 0)))
-	//	{
-	//		EditorGUILayout.HelpBox("Atlas size should be a power of 2", MessageType.Warning);
-	//	}
-
-	//	if (GUILayout.Button("Create atlas"))
-	//	{
-	//		CreateAtlas();
-	//	}
-	//}
-
-	private void DrawPsdLayers()
-	{
-		EditorGUILayout.LabelField("Layers", headerStyle);
-
-		scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
-
-		// Make the labels draw on the left
-		GUIStyle leftLabel = new GUIStyle(GUI.skin.GetStyle("label"))
-		{
-			alignment = TextAnchor.MiddleLeft,
-			padding = new RectOffset(0, 0, 0, 0)
-		};
-
-		int indentLevel = 0;
-		List<bool> groupVisible = new List<bool>();
-
-		for (int i = psd.Layers.Count - 1; i >= 0; i--)
-		{
-			Layer layer = psd.Layers[i];
-
-			// Get the section info for this layer
-			var secInfo = layer.AdditionalInfo
-								.Where(info => info.GetType() == typeof(LayerSectionInfo))
-								.ToArray();
-			bool isOpen = false;
-			bool isGroup = false;
-			bool closeGroup = false;
-			if (secInfo.Any())
+			settings.ScaleBy = GUILayout.Toolbar(settings.ScaleBy, new string[] { "1X", "2X", "4X" });
+			settings.PixelsToUnitSize = EditorGUILayout.FloatField("Pixels To Unit Size", settings.PixelsToUnitSize);
+			if (settings.PixelsToUnitSize <= 0)
 			{
-				foreach (var layerSecInfo in secInfo)
-				{
-					LayerSectionInfo info = (LayerSectionInfo)layerSecInfo;
-					isOpen = info.SectionType == LayerSectionType.OpenFolder;
-					isGroup = info.SectionType == LayerSectionType.ClosedFolder | isOpen;
-					closeGroup = info.SectionType == LayerSectionType.SectionDivider;
-					if (isGroup || closeGroup)
-						break;
-				}
+				EditorGUILayout.HelpBox("Pixels To Unit Size should be greater than 0.", MessageType.Warning);
 			}
 
-			// If close group, just continue to the next layer
-			if (closeGroup)
+			settings.Pivot = (PSDExporter.PivotPos)EditorGUILayout.EnumPopup("Pivot", settings.Pivot);
+			if (settings.Pivot == PSDExporter.PivotPos.Custom)
 			{
-				indentLevel--;
-				continue;
+				settings.PivotVector = EditorGUILayout.Vector2Field("Custom Pivot", settings.PivotVector);
 			}
 
-			if (layer.Name != "</Layer set>")
+			if (GUILayout.Button("Export Visible Layers"))
 			{
-				EditorGUILayout.BeginHorizontal();
+				ExportLayers();
+			}
+		}
 
-				// When inside a layer group, check if it is visible. If not, set to false
-				if (indentLevel > 0 && !groupVisible[indentLevel - 1])
-					layer.Visible = false;
+		private void DrawSpriteEntry()
+		{
+			GUILayout.Label("Sprite Creation", styleHeader);
 
-				// Draw layer visibility toggle
-				layer.Visible = EditorGUILayout.Toggle(layer.Visible, GUILayout.MaxWidth(15f));
-				GUILayout.Space(indentLevel * 20f);
+			createPivot = (PSDExporter.PivotPos)EditorGUILayout.EnumPopup("Create Pivot", createPivot);
 
-				if (isGroup)
+			if (_sortingLayerNames != null)
+				createSortLayer = EditorGUILayout.Popup("Sorting Layer", createSortLayer, _sortingLayerNames);
+
+			if (GUILayout.Button("Create at Selection"))
+			{
+				createAtSelection = true;
+				CreateSprites();
+			}
+
+			if (GUILayout.Button("Create Sprites"))
+			{
+				createAtSelection = false;
+				CreateSprites();
+			}
+		}
+
+		private void DrawPsdLayers()
+		{
+			EditorGUILayout.LabelField("Layers", styleHeader);
+
+			scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
+
+			int indentLevel = 0;
+
+			PsdFile psd = settings.Psd;
+			for (int i = psd.Layers.Count - 1; i >= 0; i--)
+			{
+				Layer layer = psd.Layers[i];
+
+				var groupInfo = fileInfo.GetGroupByLayerIndex(i);
+				bool inGroup = groupInfo != null;
+
+				bool startGroup = false;
+				bool closeGroup = false;
+
+				if (inGroup)
 				{
-					// Draw the layer group name
-					EditorGUILayout.Foldout(isOpen, layer.Name);
-				}
-				else
-				{
-					// Draw the layer name
-					GUILayout.Label(layer.Name, leftLabel);
+					closeGroup = groupInfo.start == i;
+					startGroup = groupInfo.end == i;
 				}
 
-				EditorGUILayout.EndHorizontal();
+				// If entering a layer group, indent
+				if (closeGroup)
+				{
+					indentLevel--;
+					continue;
+				}
+
+				if (inGroup && !startGroup)
+				{
+					// Skip contents if group folder closed
+					if (!groupInfo.opened)
+						continue;
+					if (!groupInfo.visible)
+						GUI.enabled = false;
+				}
+
+				if (layer.Name != "</Layer set>")
+				{
+					EditorGUILayout.BeginHorizontal();
+
+					bool visToggle = true;
+					if (startGroup)
+						visToggle = groupInfo.visible;
+					else
+						visToggle = fileInfo.LayerVisibility[i];
+
+					// Draw layer visibility toggle
+					visToggle = EditorGUILayout.Toggle(visToggle, GUILayout.MaxWidth(15f));
+					GUILayout.Space(indentLevel * 20f);
+
+					if (startGroup)
+					{
+						// Draw the layer group name
+						groupInfo.opened = EditorGUILayout.Foldout(groupInfo.opened, layer.Name);
+						groupInfo.visible = visToggle;
+					}
+					else
+					{
+						// Draw the layer name
+						GUILayout.Label(layer.Name, styleLabelLeft);
+						fileInfo.LayerVisibility[i] = visToggle;
+					}
+
+					EditorGUILayout.EndHorizontal();
+				}
+
+				// If close group, just continue to the next layer
+				if (startGroup)
+				{
+					indentLevel++;
+				}
+
+				GUI.enabled = true;
+			} // End layer loop
+			EditorGUILayout.EndScrollView();
+		}
+
+		private void ExportLayers()
+		{
+			PSDExporter.Export(settings, fileInfo);
+		}
+
+		private void CreateSprites()
+		{
+			int zOrder = settings.Psd.Layers.Count;
+
+			// Find scaling factor
+			float posScale = 1f;
+			switch (settings.ScaleBy)
+			{
+				case 1:
+					posScale = 0.5f;
+					break;
+				case 2:
+					posScale = 0.25f;
+					break;
 			}
 
-			// If entering a layer group, indent and save the visibility of the layer group
-			if (isGroup)
+			GameObject root = new GameObject(settings.Filename);
+
+			// Create the offset vector
+			Vector3 createOffset = Vector3.zero;
+			if (createPivot != PivotPos.TopLeft)
 			{
-				indentLevel++;
-				if (indentLevel >= groupVisible.Count)
-					groupVisible.Add(true);
-				groupVisible[indentLevel - 1] = layer.Visible;
+				Vector2 docSize = new Vector2(settings.Psd.ColumnCount, settings.Psd.RowCount);
+				docSize *= posScale;
+
+				if (createPivot == PivotPos.Center || createPivot == PivotPos.Left || createPivot == PivotPos.Right)
+					createOffset.y = (docSize.y / 2) / settings.PixelsToUnitSize;
+				if (createPivot == PivotPos.Bottom || createPivot == PivotPos.BottomLeft || createPivot == PivotPos.BottomRight)
+					createOffset.y = docSize.y / settings.PixelsToUnitSize;
+
+				if (createPivot == PivotPos.Center || createPivot == PivotPos.Top || createPivot == PivotPos.Bottom)
+					createOffset.x = -(docSize.x / 2) / settings.PixelsToUnitSize;
+				if (createPivot == PivotPos.Right || createPivot == PivotPos.TopRight || createPivot == PivotPos.BottomRight)
+					createOffset.x = -(docSize.x) / settings.PixelsToUnitSize;
 			}
 
-		}
-		EditorGUILayout.EndScrollView();
-	}
-
-	private Texture2D CreateTexture(Layer layer)
-	{
-		if ((int)layer.Rect.width == 0 || (int)layer.Rect.height == 0)
-			return null;
-
-		//int fileWidth = psd.ColumnCount;
-		//int fileHeight = psd.RowCount;
-
-		//int textureWidth = (int) layer.Rect.width;
-		//int textureHeight = (int) layer.Rect.height;
-
-		Texture2D tex = new Texture2D((int)layer.Rect.width, (int)layer.Rect.height, TextureFormat.RGBA32, true);
-		Color32[] pixels = new Color32[tex.width * tex.height];
-
-		Channel red = (from l in layer.Channels where l.ID == 0 select l).First();
-		Channel green = (from l in layer.Channels where l.ID == 1 select l).First();
-		Channel blue = (from l in layer.Channels where l.ID == 2 select l).First();
-		Channel alpha = layer.AlphaChannel;
-
-		for (int i = 0; i < pixels.Length; i++)
-		{
-			byte r = red.ImageData[i];
-			byte g = green.ImageData[i];
-			byte b = blue.ImageData[i];
-			byte a = 255;
-
-			if (alpha != null)
-				a = alpha.ImageData[i];
-
-			int mod = i % tex.width;
-			int n = ((tex.width - mod - 1) + i) - mod;
-			pixels[pixels.Length - n - 1] = new Color32(r, g, b, a);
-		}
-
-		tex.SetPixels32(pixels);
-		tex.Apply();
-
-		return tex;
-	}
-
-	private void ExportLayers()
-	{
-		SaveMetaData();
-		foreach (Layer layer in psd.Layers)
-		{
-			if (layer.Visible)
+			// Loop through the layers
+			Dictionary<LayerGroupInfo, GameObject> groupHeaders = new Dictionary<LayerGroupInfo, GameObject>();
+			GameObject lastParent = root;
+			for (int i = settings.Psd.Layers.Count - 1; i >= 0; i--)
 			{
-				Texture2D tex = CreateTexture(layer);
-				if (tex == null) continue;
-				SaveAsset(tex, "_" + layer.Name);
-				DestroyImmediate(tex);
-			}
-		}
-	}
+				var groupInfo = fileInfo.GetGroupByLayerIndex(i);
+				if (groupInfo != null && !groupInfo.visible)
+					continue;
 
-	private void CreateAtlas()
-	{
-		// Texture2D[] textures = (from layer in psd.Layers where layer.Visible select CreateTexture(layer) into tex where tex != null select tex).ToArray();
+				if (!fileInfo.LayerVisibility[i])
+					continue;
 
-		List<Texture2D> textures = new List<Texture2D>();
+				Layer layer = settings.Psd.Layers[i];
 
-		// Track the spriteRenderers created via a List
-		List<SpriteRenderer> spriteRenderers = new List<SpriteRenderer>();
+				bool inGroup = groupInfo != null;
+				bool startGroup = false;
+				bool closeGroup = false;
 
-		int zOrder = 0;
-		GameObject root = new GameObject(fileName);
-		foreach (var layer in psd.Layers)
-		{
-			if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0)
-			{
-				Texture2D tex = CreateTexture(layer);
-				// Add the texture to the Texture Array
-				textures.Add(tex);
+				if (inGroup)
+				{
+					startGroup = groupInfo.end == i;
+					closeGroup = groupInfo.start == i;
 
-				GameObject go = new GameObject(layer.Name);
-				SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
-				go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / pixelsToUnitSize, (-layer.Rect.height / 2 - layer.Rect.y) / pixelsToUnitSize, 0);
-				// Add the sprite renderer to the SpriteRenderer Array
-				spriteRenderers.Add(sr);
-				sr.sortingOrder = zOrder++;
-				go.transform.parent = root.transform;
-			}
-		}
+					if (startGroup)
+					{
+						GameObject groupRoot = new GameObject(layer.Name);
+						groupRoot.transform.parent = lastParent.transform;
+						groupRoot.transform.localPosition = Vector3.zero;
+						groupRoot.transform.localScale = Vector3.one;
 
-		// The output of PackTextures returns a Rect array from which we can create our sprites
-		Rect[] rects;
-		Texture2D atlas = new Texture2D(atlassize, atlassize);
-		Texture2D[] textureArray = textures.ToArray();
-		rects = atlas.PackTextures(textureArray, 2, atlassize);
-		List<SpriteMetaData> Sprites = new List<SpriteMetaData>();
+						lastParent = groupRoot;
+						groupHeaders.Add(groupInfo, groupRoot);
+						continue;
+					}
+					if (closeGroup)
+					{
+						lastParent = groupHeaders[groupInfo].transform.parent.gameObject;
+						continue;
+					}
+				}
 
-		// For each rect in the Rect Array create the sprite and assign to the SpriteMetaData
-		for (int i = 0; i < rects.Length; i++)
-		{
-			// add the name and rectangle to the dictionary
-			SpriteMetaData smd = new SpriteMetaData();
-			smd.name = spriteRenderers[i].name;
-			smd.rect = new Rect(rects[i].xMin * atlas.width, rects[i].yMin * atlas.height, rects[i].width * atlas.width, rects[i].height * atlas.height);
-			smd.pivot = new Vector2(0.5f, 0.5f); // Center is default otherwise layers will be misaligned
-			smd.alignment = (int)SpriteAlignment.Center;
-			Sprites.Add(smd);
-		}
-
-		// Need to load the image first
-		string assetPath = AssetDatabase.GetAssetPath(image);
-		string path = Path.Combine(Path.GetDirectoryName(assetPath),
-			Path.GetFileNameWithoutExtension(assetPath) + "_atlas" + ".png");
-
-		byte[] buf = atlas.EncodeToPNG();
-		File.WriteAllBytes(path, buf);
-		AssetDatabase.Refresh();
-
-		// Get our texture that we loaded
-		atlas = (Texture2D)AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
-		TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
-		// Make sure the size is the same as our atlas then create the spritesheet
-		textureImporter.maxTextureSize = atlassize;
-		textureImporter.spritesheet = Sprites.ToArray();
-		textureImporter.textureType = TextureImporterType.Sprite;
-		textureImporter.spriteImportMode = SpriteImportMode.Multiple;
-		textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
-		textureImporter.spritePixelsToUnits = pixelsToUnitSize;
-		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-
-		// For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
-		for (int j = 0; j < textureImporter.spritesheet.Length; j++)
-		{
-			// Debug.Log(textureImporter.spritesheet[j].rect);
-			Sprite spr = Sprite.Create(atlas, textureImporter.spritesheet[j].rect, textureImporter.spritesheet[j].pivot, pixelsToUnitSize);  // The 100.0f is for the pixels to unit, maybe make that a public variable for the user to change before hand?
-
-			// Add the sprite to the sprite renderer
-			spriteRenderers[j].sprite = spr;
-		}
-
-		foreach (Texture2D tex in textureArray)
-		{
-			DestroyImmediate(tex);
-		}
-	}
-
-	private void CreateSprites()
-	{
-		int zOrder = 0;
-
-		// Find scaling factor
-		float posScale = 1f;
-		switch (scaleBy)
-		{
-			case 1:
-				posScale = 0.5f;
-				break;
-			case 2:
-				posScale = 0.25f;
-				break;
-		}
-
-		GameObject root = new GameObject(fileName);
-
-		// Create the offset vector
-		Vector3 createOffset = Vector3.zero;
-		if (createPivot != PivotPos.TopLeft)
-		{
-			Vector2 docSize = new Vector2(psd.ColumnCount, psd.RowCount);
-			docSize *= posScale;
-
-			if (createPivot == PivotPos.Center || createPivot == PivotPos.Left || createPivot == PivotPos.Right)
-				createOffset.y = (docSize.y / 2) / pixelsToUnitSize;
-			if (createPivot == PivotPos.Bottom || createPivot == PivotPos.BottomLeft || createPivot == PivotPos.BottomRight)
-				createOffset.y = docSize.y / pixelsToUnitSize;
-
-			if (createPivot == PivotPos.Center || createPivot == PivotPos.Top || createPivot == PivotPos.Bottom)
-				createOffset.x = -(docSize.x / 2) / pixelsToUnitSize;
-			if (createPivot == PivotPos.Right || createPivot == PivotPos.TopRight || createPivot == PivotPos.BottomRight)
-				createOffset.x = -(docSize.x) / pixelsToUnitSize;
-		}
-
-		// Loop through the layers
-		foreach (var layer in psd.Layers)
-		{
-			if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0)
-			{
 				// Try to get the sprite from the asset database first
 				string assetPath = AssetDatabase.GetAssetPath(image);
 				string path = Path.Combine(Path.GetDirectoryName(assetPath),
@@ -591,9 +388,7 @@ public class PSDEditorWindow : EditorWindow
 				Sprite spr = (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
 				if (spr == null)
 				{
-					Texture2D tex = CreateTexture(layer);
-					spr = SaveAsset(tex, "_" + layer.Name);
-					DestroyImmediate(tex);
+					spr = PSDExporter.CreateSprite(settings, layer);
 				}
 
 				// Get the pivot settings for the sprite
@@ -602,73 +397,37 @@ public class PSDEditorWindow : EditorWindow
 				GameObject go = new GameObject(layer.Name);
 				SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
 				sr.sprite = spr;
-				sr.sortingOrder = zOrder++;
+				sr.sortingOrder = zOrder--;
 				if (_sortingLayerNames != null)
 				{
 					sr.sortingLayerName = _sortingLayerNames[createSortLayer];
 				}
 
 				Vector3 goPos = Vector3.zero;
-				goPos.x = ((layer.Rect.width * spriteSettings.spritePivot.x) + layer.Rect.x) / pixelsToUnitSize;
-				goPos.y = (-(layer.Rect.height * (1 - spriteSettings.spritePivot.y)) - layer.Rect.y) / pixelsToUnitSize;
+				goPos.x = ((layer.Rect.width * spriteSettings.spritePivot.x) + layer.Rect.x) / settings.PixelsToUnitSize;
+				goPos.y = (-(layer.Rect.height * (1 - spriteSettings.spritePivot.y)) - layer.Rect.y) / settings.PixelsToUnitSize;
 				goPos.x *= posScale;
 				goPos.y *= posScale;
 
 				goPos += createOffset;
 
-				go.transform.position = goPos;
-				go.transform.parent = root.transform;
+				go.transform.parent = lastParent.transform;
+				go.transform.localScale = Vector3.one;
+				go.transform.localPosition = goPos;
 
 				if (createAtSelection && Selection.activeGameObject != null)
 				{
 					go.layer = Selection.activeGameObject.layer;
 				}
 			}
-		}
 
-		if (createAtSelection && Selection.activeGameObject != null)
-		{
-			root.transform.parent = Selection.activeGameObject.transform;
-			root.transform.localScale = Vector3.one;
-			root.transform.localPosition = Vector3.zero;
-			root.layer = Selection.activeGameObject.layer;
-		}
-	}
-
-	private Sprite SaveAsset(Texture2D tex, string suffix)
-	{
-		string assetPath = AssetDatabase.GetAssetPath(image);
-		string path = Path.Combine(Path.GetDirectoryName(assetPath),
-			Path.GetFileNameWithoutExtension(assetPath) + suffix + ".png");
-
-		if (scaleBy > 0)
-		{
-			var resize = new TextureResize(tex);
-			int width = Mathf.RoundToInt(tex.width / 2);
-			int height = Mathf.RoundToInt(tex.height / 2);
-			if (scaleBy == 2)
+			if (createAtSelection && Selection.activeGameObject != null)
 			{
-				width = Mathf.RoundToInt(tex.width / 4);
-				height = Mathf.RoundToInt(tex.height / 4);
+				root.transform.parent = Selection.activeGameObject.transform;
+				root.transform.localScale = Vector3.one;
+				root.transform.localPosition = Vector3.zero;
+				root.layer = Selection.activeGameObject.layer;
 			}
-			tex = resize.Resize(width, height);
 		}
-
-		byte[] buf = tex.EncodeToPNG();
-		File.WriteAllBytes(path, buf);
-		AssetDatabase.Refresh();
-		// Load the texture so we can change the type
-		var textureObj = AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
-		TextureImporter textureImporter = (TextureImporter)AssetImporter.GetAtPath(path);
-
-		textureImporter.textureType = TextureImporterType.Sprite;
-		textureImporter.spriteImportMode = SpriteImportMode.Single;
-		textureImporter.spritePivot = pivotCustom;
-		textureImporter.spritePixelsToUnits = pixelsToUnitSize;
-		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
-		EditorUtility.SetDirty(textureObj);
-
-		return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
 	}
 }
-

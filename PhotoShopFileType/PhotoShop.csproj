@@ -49,6 +49,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Editor\PSDEditorWindow.cs" />
+    <Compile Include="Editor\PSDExporter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PsdFile\Exceptions.cs" />
     <Compile Include="PsdFile\ImageResource.cs" />
@@ -75,7 +76,6 @@
     <Compile Include="PsdFile\RleRowLengths.cs" />
     <Compile Include="PsdFile\RleWriter.cs" />
     <Compile Include="PsdFile\Util.cs" />
-    <Compile Include="TextureResize.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources.resx">
