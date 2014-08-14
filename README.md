@@ -11,7 +11,7 @@ This plug in can be installed in two ways
 
 ### Compiled DLL ###
 
-The source code can be compiled into a DLL and placed into any folder of your project. This repo contains a compiled DLL in `/bin/Release/PhotoShop.dll`
+The source code can be compiled into a DLL and placed into any directory in your Unity project. This repo contains a compiled DLL in `/bin/PhotoShop.dll`
 
 ### Unity Editor Compilation ###
 
@@ -40,9 +40,12 @@ The *1X, 2X, 4X* setting indicates how many times larger the PSD is in relation 
 
 Press the **Export Visible Layers** button to export the layers. Depending on the size of the PSD, this may take a while.
 
+Export settings are saved as asset tags on the PSD file.
+
 **Important note**
 
 If you are exporting with a pivot that is not center, you must select all the exported sprites in the project explorer after your first export and manually set the pivot to `custom` in the Unity inspector. This only has to be done once.
+
 
 ### Sprite Creation
 
