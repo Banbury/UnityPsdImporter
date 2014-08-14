@@ -53,10 +53,10 @@ namespace PhotoshopFile
 
     public void Write(Rect rect)
     {
-      Write((int)rect.top);
-      Write((int)rect.left);
-      Write((int)rect.bottom);
-      Write((int)rect.right);
+      Write((int)rect.yMin);
+      Write((int)rect.xMin);
+      Write((int)rect.yMax);
+      Write((int)rect.xMax);
     }
 
     /// <summary>

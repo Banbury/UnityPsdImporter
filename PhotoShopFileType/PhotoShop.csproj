@@ -75,6 +75,7 @@
     <Compile Include="PsdFile\RleRowLengths.cs" />
     <Compile Include="PsdFile\RleWriter.cs" />
     <Compile Include="PsdFile\Util.cs" />
+    <Compile Include="TextureResize.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources.resx">
