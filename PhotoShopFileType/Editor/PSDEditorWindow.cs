@@ -275,6 +275,7 @@ namespace kontrabida.psdexport
 						// Draw the layer group name
 						groupInfo.opened = EditorGUILayout.Foldout(groupInfo.opened, layer.Name);
 						groupInfo.visible = visToggle;
+						fileInfo.LayerVisibility[i] = visToggle;
 					}
 					else
 					{
@@ -353,13 +354,11 @@ namespace kontrabida.psdexport
 				Layer layer = settings.Psd.Layers[i];
 
 				bool inGroup = groupInfo != null;
-				bool startGroup = false;
-				bool closeGroup = false;
 
 				if (inGroup)
 				{
-					startGroup = groupInfo.end == i;
-					closeGroup = groupInfo.start == i;
+					bool startGroup = groupInfo.end == i;
+					bool closeGroup = groupInfo.start == i;
 
 					if (startGroup)
 					{
