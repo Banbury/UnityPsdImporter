@@ -356,6 +356,7 @@ namespace kontrabida.psdexport
 					height = Mathf.RoundToInt(tex.height / 4);
 					mipLevel = 2;
 				}
+				// Scaling by abusing mip maps
 				Texture2D resized = new Texture2D(width, height);
 				resized.SetPixels32(tex.GetPixels32(mipLevel));
 				resized.Apply();
@@ -374,8 +375,9 @@ namespace kontrabida.psdexport
 			textureImporter.spriteImportMode = SpriteImportMode.Single;
 			textureImporter.spritePivot = settings.PivotVector;
 			textureImporter.spritePixelsToUnits = settings.PixelsToUnitSize;
-			AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 			EditorUtility.SetDirty(textureObj);
+			AssetDatabase.WriteImportSettingsIfDirty(path);
+			AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
 			return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
 		}
