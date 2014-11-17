@@ -21,7 +21,6 @@ Then copy the following files and directories under the `PhotoShopFileType` into
 
 - `/Editor`
 - `/PsdFile`
-- `TextureResize.cs`
 
 Usage
 -----
@@ -30,30 +29,31 @@ To use the Unity PSD Importer, in the Unity3D Editor go to Sprites > PSD Import 
 
 Alternatively, right click on a PSD in the project explorer and go to Sprites > PSD Import.
 
-### Export Settings ###
+### Layers Settings ###
 
 Check the layers that will be exported. This is initially set to the visible layers from the PSD document. If a layer group is unchecked, the child layers cannot be checked.
 
-The *1X, 2X, 4X* setting indicates how many times larger the PSD is in relation to the screen pixel size. This is useful for when your source PSD is created at a higher resolution than the target one.
+The layer size drop down lets you further reduce the absolute image size of the layer when it's imported while retaining the same display size in relation to the other imported layers.
 
-*Pixels to unit size* and *pivot* are the import settings that all the exported sprites will use.
+The layer pivot drop down lets you set the pivot point of the layer when imported to Unity.
+
+### Export Settings ###
+
+The *1X, 2X, 4X* setting indicates how much in absolute terms the PSD will be resized by when importing layers. 1X means no reduction, 2X will scale the PSD down to 50% and 4X will scale it down to 25%.
+
+*Pixels to unit size* and *pivot* are the default import settings that the exported sprites will use.
 
 Press the **Export Visible Layers** button to export the layers. Depending on the size of the PSD, this may take a while.
 
 Export settings are saved as asset tags on the PSD file.
 
-**Important note**
-
-If you are exporting with a pivot that is not center, you must select all the exported sprites in the project explorer after your first export and manually set the pivot to `custom` in the Unity inspector. This only has to be done once.
-
-
-### Sprite Creation
+### Sprite Creation ###
 
 Sprite creation recreates the layout of the PSD document in your scene.
 
 *Create Pivot* sets where the root of the PSD document will start from.
 
-*Sorting Layer* sets where the sorting layer the created sprites will be on.
+*Sorting Layer* sets the sorting layer the created sprites will be on.
 
 Clicking on **Create at Selection** will recreate the PSD starting on the selected game object in the hierarchy, which also copies the layer of the selection.
 
