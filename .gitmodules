@@ -1,0 +1,3 @@
+[submodule "PhotoShopFileType/PSDModule"]
+	path = PhotoShopFileType/PSDModule
+	url = https://github.com/ChemiKhazi/UnityPSDImporterModule.git
