@@ -31,8 +31,7 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 
-public class PSDEditorWindow : EditorWindow
-{
+public class PSDEditorWindow : EditorWindow {
     private Texture2D image;
     private Vector2 scrollPos;
     private PsdFile psd;
@@ -41,98 +40,77 @@ public class PSDEditorWindow : EditorWindow
     private bool importIntoSelected = false;
     private string fileName;
 
-
-    private bool useSizeDelta;
-
-
     private Transform selectedTransform;
 
     [MenuItem("Sprites/PSD Import")]
-    public static void ShowWindow()
-    {
+    public static void ShowWindow() {
         var wnd = GetWindow<PSDEditorWindow>();
         wnd.title = "PSD Import";
         wnd.Show();
     }
 
-    public void OnGUI()
-    {
+    public void OnGUI() {
         EditorGUI.BeginChangeCheck();
         image = (Texture2D)EditorGUILayout.ObjectField("PSD File", image, typeof(Texture2D), true);
         bool changed = EditorGUI.EndChangeCheck();
 
-        if (image != null)
-        {
-            if (changed)
-            {
+        if (image != null) {
+            if (changed) {
                 string path = AssetDatabase.GetAssetPath(image);
 
-                if (path.ToUpper().EndsWith(".PSD"))
-                {
+                if (path.ToUpper().EndsWith(".PSD")) {
                     psd = new PsdFile(path, Encoding.Default);
                     fileName = Path.GetFileNameWithoutExtension(path);
                 }
-                else
-                {
+                else {
                     psd = null;
                 }
             }
-            if (psd != null)
-            {
+            if (psd != null) {
                 scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
-                foreach (Layer layer in psd.Layers)
-                {
-                    if (layer.Name != "</Layer set>" && layer.Name != "</Layer group>")
-                    {
+                foreach (Layer layer in psd.Layers) {
+                    if (layer.Name != "</Layer set>" && layer.Name != "</Layer group>") {
                         layer.Visible = EditorGUILayout.ToggleLeft(layer.Name, layer.Visible);
                     }
                 }
 
                 EditorGUILayout.EndScrollView();
 
-                if (GUILayout.Button("Export visible layers"))
-                {
+                if (GUILayout.Button("Export visible layers")) {
                     ExportLayers();
                 }
 
                 atlassize = EditorGUILayout.IntField("Max. atlas size", atlassize);
 
-                if (!((atlassize != 0) && ((atlassize & (atlassize - 1)) == 0)))
-                {
+                if (!((atlassize != 0) && ((atlassize & (atlassize - 1)) == 0))) {
                     EditorGUILayout.HelpBox("Atlas size should be a power of 2", MessageType.Warning);
                 }
 
                 pixelsToUnitSize = EditorGUILayout.FloatField("Pixels To Unit Size", pixelsToUnitSize);
 
-                if (pixelsToUnitSize <= 0)
-                {
+                if (pixelsToUnitSize <= 0) {
                     EditorGUILayout.HelpBox("Pixels To Unit Size should be greater than 0.", MessageType.Warning);
                 }
                 importIntoSelected = EditorGUILayout.Toggle("Import into selected object", importIntoSelected);
                 useSizeDelta = EditorGUILayout.Toggle("Use Size Delta", useSizeDelta);
-                if (GUILayout.Button("Create atlas"))
-                {
+                if (GUILayout.Button("Create atlas")) {
                     CreateAtlas();
                 }
-                if (GUILayout.Button("Create sprites"))
-                {
+                if (GUILayout.Button("Create sprites")) {
                     CreateSprites();
                 }
-                if (GUILayout.Button("Create images"))
-                {
+                if (GUILayout.Button("Create images")) {
                     CreateImages();
                 }
             }
-            else
-            {
+            else {
                 EditorGUILayout.HelpBox("This texture is not a PSD file.", MessageType.Error);
             }
         }
     }
 
-    private Texture2D CreateTexture(Layer layer)
-    {
+    private Texture2D CreateTexture(Layer layer) {
         if ((int)layer.Rect.width == 0 || (int)layer.Rect.height == 0)
             return null;
 
@@ -144,8 +122,7 @@ public class PSDEditorWindow : EditorWindow
         Channel blue = (from l in layer.Channels where l.ID == 2 select l).First();
         Channel alpha = layer.AlphaChannel;
 
-        for (int i = 0; i < pixels.Length; i++)
-        {
+        for (int i = 0; i < pixels.Length; i++) {
             byte r = red.ImageData[i];
             byte g = green.ImageData[i];
             byte b = blue.ImageData[i];
@@ -164,12 +141,9 @@ public class PSDEditorWindow : EditorWindow
         return tex;
     }
 
-    private void ExportLayers()
-    {
-        foreach (Layer layer in psd.Layers)
-        {
-            if (layer.Visible)
-            {
+    private void ExportLayers() {
+        foreach (Layer layer in psd.Layers) {
+            if (layer.Visible) {
                 Texture2D tex = CreateTexture(layer);
                 if (tex == null) continue;
                 SaveAsset(tex, "_" + layer.Name);
@@ -178,8 +152,7 @@ public class PSDEditorWindow : EditorWindow
         }
     }
 
-    private void CreateAtlas()
-    {
+    private void CreateAtlas() {
         // Texture2D[] textures = (from layer in psd.Layers where layer.Visible select CreateTexture(layer) into tex where tex != null select tex).ToArray();
 
         List<Texture2D> textures = new List<Texture2D>();
@@ -189,10 +162,8 @@ public class PSDEditorWindow : EditorWindow
 
         int zOrder = 0;
         GameObject root = new GameObject(fileName);
-        foreach (var layer in psd.Layers)
-        {
-            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0)
-            {
+        foreach (var layer in psd.Layers) {
+            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
                 Texture2D tex = CreateTexture(layer);
                 // Add the texture to the Texture Array
                 textures.Add(tex);
@@ -215,8 +186,7 @@ public class PSDEditorWindow : EditorWindow
         List<SpriteMetaData> Sprites = new List<SpriteMetaData>();
 
         // For each rect in the Rect Array create the sprite and assign to the SpriteMetaData
-        for (int i = 0; i < rects.Length; i++)
-        {
+        for (int i = 0; i < rects.Length; i++) {
             // add the name and rectangle to the dictionary
             SpriteMetaData smd = new SpriteMetaData();
             smd.name = spriteRenderers[i].name;
@@ -248,8 +218,7 @@ public class PSDEditorWindow : EditorWindow
         AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
         // For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
-        for (int j = 0; j < textureImporter.spritesheet.Length; j++)
-        {
+        for (int j = 0; j < textureImporter.spritesheet.Length; j++) {
             // Debug.Log(textureImporter.spritesheet[j].rect);
             Sprite spr = Sprite.Create(atlas, textureImporter.spritesheet[j].rect, textureImporter.spritesheet[j].pivot, pixelsToUnitSize);  // The 100.0f is for the pixels to unit, maybe make that a public variable for the user to change before hand?
 
@@ -257,28 +226,22 @@ public class PSDEditorWindow : EditorWindow
             spriteRenderers[j].sprite = spr;
         }
 
-        foreach (Texture2D tex in textureArray)
-        {
+        foreach (Texture2D tex in textureArray) {
             DestroyImmediate(tex);
         }
     }
 
-    private void CreateSprites()
-    {
-        if (importIntoSelected)
-        {
+    private void CreateSprites() {
+        if (importIntoSelected) {
             selectedTransform = Selection.activeTransform;
         }
         int zOrder = 0;
         GameObject root = new GameObject(fileName);
-        if (importIntoSelected && selectedTransform != null)
-        {
+        if (importIntoSelected && selectedTransform != null) {
             root.transform.parent = selectedTransform;
         }
-        foreach (var layer in psd.Layers)
-        {
-            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0)
-            {
+        foreach (var layer in psd.Layers) {
+            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
                 Texture2D tex = CreateTexture(layer);
                 Sprite spr = SaveAsset(tex, "_" + layer.Name);
                 DestroyImmediate(tex);
@@ -292,10 +255,8 @@ public class PSDEditorWindow : EditorWindow
             }
         }
     }
-    private void CreateImages()
-    {
-        if (importIntoSelected)
-        {
+    private void CreateImages() {
+        if (importIntoSelected) {
             selectedTransform = Selection.activeTransform;
         }
         int zOrder = 0;
@@ -312,10 +273,8 @@ public class PSDEditorWindow : EditorWindow
         rtransf.sizeDelta = Vector2.zero;
         rtransf.localPosition = Vector3.zero;
 
-        foreach (var layer in psd.Layers)
-        {
-            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0)
-            {
+        foreach (var layer in psd.Layers) {
+            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
                 var targetOrder = zOrder++;
                 Texture2D tex = CreateTexture(layer);
                 Sprite spr = SaveAsset(tex, "_" + layer.Name);
@@ -336,8 +295,7 @@ public class PSDEditorWindow : EditorWindow
         }
     }
 
-    private Sprite SaveAsset(Texture2D tex, string suffix)
-    {
+    private Sprite SaveAsset(Texture2D tex, string suffix) {
         string assetPath = AssetDatabase.GetAssetPath(image);
         string path = Path.Combine(Path.GetDirectoryName(assetPath),
             Path.GetFileNameWithoutExtension(assetPath) + suffix + ".png");
