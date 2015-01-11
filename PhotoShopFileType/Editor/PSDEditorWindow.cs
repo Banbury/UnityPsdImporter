@@ -1,7 +1,7 @@
 ﻿/*
 The MIT License (MIT)
 
-Copyright (c) 2013 Banbury
+Copyright (c) 2013-2015 Banbury & Play-Em
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -39,6 +39,7 @@ public class PSDEditorWindow : EditorWindow {
     private float pixelsToUnitSize = 100.0f;
     private bool importIntoSelected = false;
     private string fileName;
+	private bool useSizeDelta;
 
     private Transform selectedTransform;
 
@@ -214,7 +215,7 @@ public class PSDEditorWindow : EditorWindow {
         textureImporter.textureType = TextureImporterType.Sprite;
         textureImporter.spriteImportMode = SpriteImportMode.Multiple;
         textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
-        textureImporter.spritePixelsToUnits = pixelsToUnitSize;
+        textureImporter.spritePixelsPerUnit = pixelsToUnitSize;
         AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
         // For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
@@ -309,7 +310,7 @@ public class PSDEditorWindow : EditorWindow {
         textureImporter.textureType = TextureImporterType.Sprite;
         textureImporter.spriteImportMode = SpriteImportMode.Single;
         textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
-        textureImporter.spritePixelsToUnits = pixelsToUnitSize;
+        textureImporter.spritePixelsPerUnit = pixelsToUnitSize;
         AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
         return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
