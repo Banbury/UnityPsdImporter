@@ -37,7 +37,10 @@ public class PSDEditorWindow : EditorWindow {
     private PsdFile psd;
     private int atlassize = 4096;
     private float pixelsToUnitSize = 100.0f;
-	private string fileName;
+    private bool importIntoSelected = false;
+    private string fileName;
+
+    private Transform selectedTransform;
 
     [MenuItem("Sprites/PSD Import")]
     public static void ShowWindow() {
@@ -57,8 +60,9 @@ public class PSDEditorWindow : EditorWindow {
 
                 if (path.ToUpper().EndsWith(".PSD")) {
                     psd = new PsdFile(path, Encoding.Default);
-					fileName = Path.GetFileNameWithoutExtension(path);
-                } else {
+                    fileName = Path.GetFileNameWithoutExtension(path);
+                }
+                else {
                     psd = null;
                 }
             }
@@ -66,7 +70,7 @@ public class PSDEditorWindow : EditorWindow {
                 scrollPos = EditorGUILayout.BeginScrollView(scrollPos);
 
                 foreach (Layer layer in psd.Layers) {
-                    if (layer.Name != "</Layer set>") {
+                    if (layer.Name != "</Layer set>" && layer.Name != "</Layer group>") {
                         layer.Visible = EditorGUILayout.ToggleLeft(layer.Name, layer.Visible);
                     }
                 }
@@ -88,14 +92,19 @@ public class PSDEditorWindow : EditorWindow {
                 if (pixelsToUnitSize <= 0) {
                     EditorGUILayout.HelpBox("Pixels To Unit Size should be greater than 0.", MessageType.Warning);
                 }
-
+                importIntoSelected = EditorGUILayout.Toggle("Import into selected object", importIntoSelected);
+                useSizeDelta = EditorGUILayout.Toggle("Use Size Delta", useSizeDelta);
                 if (GUILayout.Button("Create atlas")) {
                     CreateAtlas();
                 }
                 if (GUILayout.Button("Create sprites")) {
                     CreateSprites();
                 }
-            } else {
+                if (GUILayout.Button("Create images")) {
+                    CreateImages();
+                }
+            }
+            else {
                 EditorGUILayout.HelpBox("This texture is not a PSD file.", MessageType.Error);
             }
         }
@@ -118,7 +127,7 @@ public class PSDEditorWindow : EditorWindow {
             byte g = green.ImageData[i];
             byte b = blue.ImageData[i];
             byte a = 255;
-            
+
             if (alpha != null)
                 a = alpha.ImageData[i];
 
@@ -148,76 +157,74 @@ public class PSDEditorWindow : EditorWindow {
 
         List<Texture2D> textures = new List<Texture2D>();
 
-		// Track the spriteRenderers created via a List
+        // Track the spriteRenderers created via a List
         List<SpriteRenderer> spriteRenderers = new List<SpriteRenderer>();
 
-		int zOrder = 0;
-		GameObject root = new GameObject(fileName);
-		foreach (var layer in psd.Layers) {
-			if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
-				Texture2D tex = CreateTexture(layer);
-				// Add the texture to the Texture Array
-				textures.Add(tex);
+        int zOrder = 0;
+        GameObject root = new GameObject(fileName);
+        foreach (var layer in psd.Layers) {
+            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
+                Texture2D tex = CreateTexture(layer);
+                // Add the texture to the Texture Array
+                textures.Add(tex);
 
-				GameObject go = new GameObject(layer.Name);
-				SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
-				go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / pixelsToUnitSize, (-layer.Rect.height / 2 - layer.Rect.y) / pixelsToUnitSize, 0);
-				// Add the sprite renderer to the SpriteRenderer Array
-				spriteRenderers.Add(sr);
-				sr.sortingOrder = zOrder++;
-				go.transform.parent = root.transform;
-			}
-		}
+                GameObject go = new GameObject(layer.Name);
+                SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+                go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / pixelsToUnitSize, (-layer.Rect.height / 2 - layer.Rect.y) / pixelsToUnitSize, 0);
+                // Add the sprite renderer to the SpriteRenderer Array
+                spriteRenderers.Add(sr);
+                sr.sortingOrder = zOrder++;
+                go.transform.parent = root.transform;
+            }
+        }
 
-		// The output of PackTextures returns a Rect array from which we can create our sprites
-		Rect[] rects;
-		Texture2D atlas = new Texture2D(atlassize, atlassize);
-		Texture2D[] textureArray = textures.ToArray();
-		rects = atlas.PackTextures(textureArray, 2, atlassize);
-		List<SpriteMetaData> Sprites = new List<SpriteMetaData>();
+        // The output of PackTextures returns a Rect array from which we can create our sprites
+        Rect[] rects;
+        Texture2D atlas = new Texture2D(atlassize, atlassize);
+        Texture2D[] textureArray = textures.ToArray();
+        rects = atlas.PackTextures(textureArray, 2, atlassize);
+        List<SpriteMetaData> Sprites = new List<SpriteMetaData>();
 
-		// For each rect in the Rect Array create the sprite and assign to the SpriteMetaData
-		for(int i = 0; i < rects.Length; i++)
-		{
-			// add the name and rectangle to the dictionary
-			SpriteMetaData smd = new SpriteMetaData();
-			smd.name = spriteRenderers[i].name;
-			smd.rect = new Rect(rects[i].xMin * atlas.width, rects[i].yMin * atlas.height, rects[i].width * atlas.width, rects[i].height * atlas.height);
-			smd.pivot = new Vector2(0.5f, 0.5f); // Center is default otherwise layers will be misaligned
-			smd.alignment = (int)SpriteAlignment.Center;
-			Sprites.Add(smd);
-		}
+        // For each rect in the Rect Array create the sprite and assign to the SpriteMetaData
+        for (int i = 0; i < rects.Length; i++) {
+            // add the name and rectangle to the dictionary
+            SpriteMetaData smd = new SpriteMetaData();
+            smd.name = spriteRenderers[i].name;
+            smd.rect = new Rect(rects[i].xMin * atlas.width, rects[i].yMin * atlas.height, rects[i].width * atlas.width, rects[i].height * atlas.height);
+            smd.pivot = new Vector2(0.5f, 0.5f); // Center is default otherwise layers will be misaligned
+            smd.alignment = (int)SpriteAlignment.Center;
+            Sprites.Add(smd);
+        }
 
-		// Need to load the image first
-		string assetPath = AssetDatabase.GetAssetPath(image);
-		string path = Path.Combine(Path.GetDirectoryName(assetPath),
-			Path.GetFileNameWithoutExtension(assetPath) + "_atlas" + ".png");
+        // Need to load the image first
+        string assetPath = AssetDatabase.GetAssetPath(image);
+        string path = Path.Combine(Path.GetDirectoryName(assetPath),
+            Path.GetFileNameWithoutExtension(assetPath) + "_atlas" + ".png");
 
-		byte[] buf = atlas.EncodeToPNG();
+        byte[] buf = atlas.EncodeToPNG();
         File.WriteAllBytes(path, buf);
-		AssetDatabase.Refresh();
+        AssetDatabase.Refresh();
 
-		// Get our texture that we loaded
-		atlas = (Texture2D)AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
-		TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
-		// Make sure the size is the same as our atlas then create the spritesheet
-		textureImporter.maxTextureSize = atlassize;
-		textureImporter.spritesheet = Sprites.ToArray();
-		textureImporter.textureType = TextureImporterType.Sprite; 
-		textureImporter.spriteImportMode = SpriteImportMode.Multiple;
-		textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
-		textureImporter.spritePixelsToUnits = pixelsToUnitSize;
-		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+        // Get our texture that we loaded
+        atlas = (Texture2D)AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
+        TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
+        // Make sure the size is the same as our atlas then create the spritesheet
+        textureImporter.maxTextureSize = atlassize;
+        textureImporter.spritesheet = Sprites.ToArray();
+        textureImporter.textureType = TextureImporterType.Sprite;
+        textureImporter.spriteImportMode = SpriteImportMode.Multiple;
+        textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
+        textureImporter.spritePixelsToUnits = pixelsToUnitSize;
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
-		// For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
-		for(int j = 0; j < textureImporter.spritesheet.Length; j++)
-		{
-			// Debug.Log(textureImporter.spritesheet[j].rect);
-			Sprite spr = Sprite.Create(atlas, textureImporter.spritesheet[j].rect, textureImporter.spritesheet[j].pivot, pixelsToUnitSize);  // The 100.0f is for the pixels to unit, maybe make that a public variable for the user to change before hand?
+        // For each rect in the Rect Array create the sprite and assign to the SpriteRenderer
+        for (int j = 0; j < textureImporter.spritesheet.Length; j++) {
+            // Debug.Log(textureImporter.spritesheet[j].rect);
+            Sprite spr = Sprite.Create(atlas, textureImporter.spritesheet[j].rect, textureImporter.spritesheet[j].pivot, pixelsToUnitSize);  // The 100.0f is for the pixels to unit, maybe make that a public variable for the user to change before hand?
 
-			// Add the sprite to the sprite renderer
-			spriteRenderers[j].sprite = spr;
-		}
+            // Add the sprite to the sprite renderer
+            spriteRenderers[j].sprite = spr;
+        }
 
         foreach (Texture2D tex in textureArray) {
             DestroyImmediate(tex);
@@ -225,9 +232,15 @@ public class PSDEditorWindow : EditorWindow {
     }
 
     private void CreateSprites() {
+        if (importIntoSelected) {
+            selectedTransform = Selection.activeTransform;
+        }
         int zOrder = 0;
         GameObject root = new GameObject(fileName);
-		foreach (var layer in psd.Layers) {
+        if (importIntoSelected && selectedTransform != null) {
+            root.transform.parent = selectedTransform;
+        }
+        foreach (var layer in psd.Layers) {
             if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
                 Texture2D tex = CreateTexture(layer);
                 Sprite spr = SaveAsset(tex, "_" + layer.Name);
@@ -238,7 +251,46 @@ public class PSDEditorWindow : EditorWindow {
                 sr.sprite = spr;
                 sr.sortingOrder = zOrder++;
                 go.transform.position = new Vector3((layer.Rect.width / 2 + layer.Rect.x) / pixelsToUnitSize, (-layer.Rect.height / 2 - layer.Rect.y) / pixelsToUnitSize, 0);
-				go.transform.parent = root.transform;
+                go.transform.parent = root.transform;
+            }
+        }
+    }
+    private void CreateImages() {
+        if (importIntoSelected) {
+            selectedTransform = Selection.activeTransform;
+        }
+        int zOrder = 0;
+        GameObject root = new GameObject(fileName);
+        root.transform.localPosition = new Vector3(0, 0, 0);
+        var rtransf = root.AddComponent<RectTransform>();
+        if (importIntoSelected && selectedTransform != null)
+            root.transform.parent = selectedTransform;
+        rtransf.anchorMin = new Vector2(0f, 0f);
+        rtransf.anchorMax = new Vector2(1f, 1f);
+        rtransf.pivot = new Vector2(0.5f, 0.5f);
+        rtransf.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, 0);
+        rtransf.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, 0);
+        rtransf.sizeDelta = Vector2.zero;
+        rtransf.localPosition = Vector3.zero;
+
+        foreach (var layer in psd.Layers) {
+            if (layer.Visible && layer.Rect.width > 0 && layer.Rect.height > 0) {
+                var targetOrder = zOrder++;
+                Texture2D tex = CreateTexture(layer);
+                Sprite spr = SaveAsset(tex, "_" + layer.Name);
+                DestroyImmediate(tex);
+
+                GameObject go = new GameObject(layer.Name);
+                go.transform.parent = root.transform;
+                go.transform.SetSiblingIndex(targetOrder);
+                UnityEngine.UI.Image image = go.AddComponent<UnityEngine.UI.Image>();
+                image.sprite = spr;
+                image.rectTransform.localPosition = new Vector3((layer.Rect.x), (layer.Rect.y * -1) - layer.Rect.height, targetOrder * 5);
+                image.rectTransform.anchorMax = new Vector2(0, 1);
+                image.rectTransform.anchorMin = new Vector2(0, 1);
+                image.rectTransform.pivot = new Vector2(0f, 0f);
+                image.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, layer.Rect.width);
+                image.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, layer.Rect.height);
             }
         }
     }
@@ -248,17 +300,17 @@ public class PSDEditorWindow : EditorWindow {
         string path = Path.Combine(Path.GetDirectoryName(assetPath),
             Path.GetFileNameWithoutExtension(assetPath) + suffix + ".png");
 
-		byte[] buf = tex.EncodeToPNG();
+        byte[] buf = tex.EncodeToPNG();
         File.WriteAllBytes(path, buf);
-		AssetDatabase.Refresh();
-		// Load the texture so we can change the type
-		AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
-		TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
-		textureImporter.textureType = TextureImporterType.Sprite; 
-		textureImporter.spriteImportMode = SpriteImportMode.Single;
-		textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
-		textureImporter.spritePixelsToUnits = pixelsToUnitSize;
-		AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+        AssetDatabase.Refresh();
+        // Load the texture so we can change the type
+        AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D));
+        TextureImporter textureImporter = AssetImporter.GetAtPath(path) as TextureImporter;
+        textureImporter.textureType = TextureImporterType.Sprite;
+        textureImporter.spriteImportMode = SpriteImportMode.Single;
+        textureImporter.spritePivot = new Vector2(0.5f, 0.5f);
+        textureImporter.spritePixelsToUnits = pixelsToUnitSize;
+        AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
 
         return (Sprite)AssetDatabase.LoadAssetAtPath(path, typeof(Sprite));
     }
