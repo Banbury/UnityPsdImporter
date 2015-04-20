@@ -52,6 +52,7 @@
     <Compile Include="PSDModule\Editor\PSDExporter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PSDModule\Editor\PsdExportSettings.cs" />
+    <Compile Include="PSDModule\Editor\PSDPostProcessor.cs" />
     <Compile Include="PSDModule\PsdFile\Exceptions.cs" />
     <Compile Include="PSDModule\PsdFile\ImageResource.cs" />
     <Compile Include="PSDModule\PsdFile\ImageResources\AlphaChannelNames.cs" />
