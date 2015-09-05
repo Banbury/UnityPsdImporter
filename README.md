@@ -1,33 +1,19 @@
-Unity Psd Importer
-==================
+# Unity Psd Importer #
 
-Unity Psd Importer is an addon for Unity3D. It provides an editor window from which individual layers can be selected
-and exported. The layers are exported either as individual PNGs or as an atlas image.
 
-Installation
-------------
+Unity PSD Importer allows Unity to import individual layers from a PSD, as well as rebuild Photoshop Layer Groups inside Unity to simplify workflows.
 
-This plug in can be installed in two ways
+## Installation ##
 
-### Compiled DLL ###
+Install the importer by placing the [compiled DLL](/bin/PhotoShopImporter.dll) either in an existing `Editor` directory of your Unity project or creating a new `Editor` directory.
 
-The source code can be compiled into a DLL and placed into any directory in your Unity project. This repo contains a compiled DLL in `/bin/PhotoShop.dll`
+![Install](Documentation/Install.png)
 
-### Unity Editor Compilation ###
+## Usage ##
 
-To compile the Unity PSD Importer in the Unity3D Editor put the files `gmcs.rsp` and `smcs.rsp` in the root `Assets` directory of your project.
+To use the importer, right click on a PSD in the Project Explorer and select `PSD Importer`.
 
-Then copy the following files and directories under the `PhotoShopFileType` into any directory of your project.
-
-- `/Editor`
-- `/PsdFile`
-
-Usage
------
-
-To use the Unity PSD Importer, in the Unity3D Editor go to Sprites > PSD Import to access the importer, then drag and drop or search for the PSD file you wish to import.  
-
-Alternatively, right click on a PSD in the project explorer and go to Sprites > PSD Import.
+![Launch Importer](Documentation/Launch-Importer.png)
 
 ### Layers Settings ###
 
@@ -37,34 +23,68 @@ The layer size drop down lets you further reduce the absolute image size of the 
 
 The layer pivot drop down lets you set the pivot point of the layer when imported to Unity.
 
-### Export Settings ###
+### Import Settings ###
 
-The *1X, 2X, 4X* setting indicates how much in absolute terms the PSD will be resized by when importing layers. 1X means no reduction, 2X will scale the PSD down to 50% and 4X will scale it down to 25%.
+These settings are applied to the layers when importing from the PSD.
 
-*Pixels to unit size* and *pivot* are the default import settings that the exported sprites will use.
+![Import Settings](Documentation/Import-Settings.png)
 
-Press the **Export Visible Layers** button to export the layers. Depending on the size of the PSD, this may take a while.
+**Source Image Scale**
 
-Export settings are saved as asset tags on the PSD file.
+The source PSD might be scaled larger than the target size for the images in Unity. This setting allows you to scale down the imported layers.
+
+The *1X, 2X, 4X* setting indicates how the layers are scaled during import.
+
+- 1X means no reduction, 100%
+- 2X will scale down to 50%
+- 4X will scale it down to 25%.
+
+**Auto Re-Export**
+
+If this is checked, whenever Unity detects that a PSD is modified, the visible layers will automatically be re-exported.
+
+**Pixels to unit size**
+
+The Pixels Per Unit applied by default to the imported layers.
+
+**Packing Tag**
+
+The tag to apply for Unity's atlas packing system.
+
+**Default Pivot**
+
+The pivot point applied by default to imported layers
+
+**Import Path**
+
+If import path is empty, the imported layers are placed in the same directory as the PSD file. If not, you can set a directory for the imported layers to go to.
 
 ### Sprite Creation ###
 
-Sprite creation recreates the layout of the PSD document in your scene.
+Sprite creation recreates the layouts of layer groups in the PSD document inside Unity. It can create either 2D Sprite objects or Unity UI Image objects.
 
-*Create Pivot* sets where the root of the PSD document will start from.
+![Sprite Creation](Documentation/Sprite-Creation.png)
 
-*Sorting Layer* sets the sorting layer the created sprites will be on.
+First, select a `Layer Group` in the layers portion of the importer. Selecting a Layer Group will also select PSD Layers and Layer Groups that are contained by it.
 
-Clicking on **Create at Selection** will recreate the PSD starting on the selected game object in the hierarchy, which also copies the layer of the selection.
+*Alignment* determines where the root object of the layer group will be aligned, relative to the layer group layout.
 
-Clicking on **Create Sprites** will recreate the PSD at the root of your scene hierarchy.
+If an object is selected in the `Scene Hierarchy`, the layer group will be recreated starting from the selected object. If no object is selected, the layer group will be created without a parent in the Scene Hierarchy.
 
-PSD support
------------
+To create `UI Images` for use with Unity UI, first select an object that is part of a UI hierarchy. When a valid object is selected, the `Create UI Images` button can be clicked.
+
+## PSD support ##
 
 It should support all image layers. However text, layer effects or other special layers will not be supported. It is best to rasterize text and layer effects before importing.
 
-Atlas Support
--------------
+## Contributing ##
 
-The [original repo](https://github.com/Banbury/UnityPsdImporter) contains Atlas Support. However, since I do not need it yet, it is disabled in this fork.
+This repository contains the release DLL and the Visual Studio project used to compile the importer into a DLL.
+
+The main importer code resides in [the UnityPsdImporterModule repository](https://github.com/ChemiKhazi/UnityPsdImporterModule). It is recommended to use that repository as a git submodule in a Unity project for working on the PSD importer.
+
+### Unity Editor Compilation ###
+
+To compile the Unity PSD Importer in the Unity3D Editor put the files `gmcs.rsp` and `smcs.rsp` found in this repository in the root `Assets` directory of your project.
+
+These files will allow Unity to compile the PSD importer code in the editor. 
