@@ -23,7 +23,7 @@ The layers display reflects the state of the PSD file as it was saved. Visible l
 
 When a layer will be imported, additional settings will appear beside the layer.
 
-The **size drop down** reduces the image size of an imported layer, while retaining the same display size in relation to the other layers.
+The **size drop down** reduces the image size of an imported layer, while retaining the same display size in relation to the other layers. This can be useful for resizing less important images as an optimization.
 
 The **layer pivot drop** down lets you set the pivot point of the layer when imported to Unity.
 
@@ -43,7 +43,7 @@ The *1X, 2X, 4X* setting indicates how the layers are scaled during import.
 - 2X will scale down to 50%
 - 4X will scale it down to 25%.
 
-**Auto Re-Export**
+**Auto Re-Import**
 
 If this is checked, whenever Unity detects that a PSD is modified, the visible layers will automatically be re-imported.
 
