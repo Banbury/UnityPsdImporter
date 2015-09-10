@@ -1,7 +1,11 @@
 # Unity Psd Importer #
 
 
-Unity PSD Importer allows Unity to import individual layers from a PSD, as well as rebuild Photoshop Layer Groups inside Unity to simplify workflows.
+Unity PSD Importer allows Unity to import individual layers from a PSD, as well as reconstruct Photoshop Layer Groups inside Unity to simplify workflows.
+
+[Demo Video](https://www.youtube.com/watch?v=9rSxRf2SNeU)
+
+[Tutorial Video](https://www.youtube.com/watch?v=d7d52Vizc0U)
 
 ## Installation ##
 
@@ -96,3 +100,9 @@ The main importer code resides in the [UnityPsdImporterModule repository](https:
 To compile the Unity PSD Importer in the Unity3D Editor put the files `gmcs.rsp` and `smcs.rsp` found in this repository in the root `Assets` directory of your project.
 
 These files will allow Unity to compile the PSD importer code in the editor.
+
+## Acknowledgements ##
+
+[@BanBury](https://github.com/Banbury) for the [PSD Importer](https://github.com/Banbury/UnityPsdImporter) that this project was forked from
+
+The [PSD Filetype plugin](http://psdplugin.codeplex.com/) that makes reading PSD files inside Unity possible
