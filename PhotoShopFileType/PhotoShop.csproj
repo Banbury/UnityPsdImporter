@@ -51,7 +51,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="PSDModule\Editor\PsdBuilder.cs" />
+    <Compile Include="PSDModule\Editor\Reconstructor\IPsdConstructor.cs" />
+    <Compile Include="PSDModule\Editor\Reconstructor\PsdBuilder.cs" />
+    <Compile Include="PSDModule\Editor\Reconstructor\SpriteConstructor.cs" />
+    <Compile Include="PSDModule\Editor\Reconstructor\UiImgConstructor.cs" />
     <Compile Include="PSDModule\Editor\PSDEditorWindow.cs" />
     <Compile Include="PSDModule\Editor\PSDExporter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
