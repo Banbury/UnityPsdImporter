@@ -1,5 +1,10 @@
 # Unity Psd Importer #
 
+## ⛔⚠️ Deprecation Alert ⚠️⛔
+
+This project is considered deprecated and unsupported. Work is moving to the [Psd2Unity importer](https://github.com/ChemiKhazi/Psd2UnityImporter). This repo is being kept for documentation purposes.
+
+**End warning**
 
 Unity PSD Importer allows Unity to import individual layers from a PSD, as well as reconstruct Photoshop Layer Groups inside Unity to simplify workflows.
 
